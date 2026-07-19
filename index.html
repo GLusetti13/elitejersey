@@ -367,8 +367,9 @@ async function loadAll(){
     if(data && data.length){
       state.products = data.map(p=>({
         id:p.id, name:p.name, price:p.price, category:p.category, club:p.club||'',
-        season:p.season||'', image:p.image, images:p.images||[p.image], badges:p.badges||[]
-      }));
+        season:p.season||'', image:p.image, images:p.images||[p.image], badges:p.badges||[],
+        createdAt:p.created_at, isHero:!!p.is_hero
+      })).sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
     } else {
       state.products = DEFAULT_PRODUCTS;
       await sb.from('products').insert(DEFAULT_PRODUCTS.map(p=>({...p})));
@@ -628,7 +629,9 @@ function render(){
 }
 
 function viewHome(){
-  const featured = state.products.slice(0,8);
+  const newest = state.products.slice(0,10);
+  const heroProduct = state.products.find(p=>p.isHero) || state.products[0];
+  const heroImg = heroProduct ? ((heroProduct.images&&heroProduct.images[0])||heroProduct.image) : placeholderImg('EliteJersey','0A0A0C');
   return `
   <section class="hero">
     <div class="container">
@@ -643,9 +646,9 @@ function viewHome(){
       </div>
       <div class="hero-visual">
         <div class="hero-num">10</div>
-        <div class="hero-card">
-          <img src="${featured[0]?featured[0].image:placeholderImg('EliteJersey','0A0A0C')}" alt="">
-          <div class="tag">${featured[0]?esc(featured[0].name):''}</div>
+        <div class="hero-card" ${heroProduct?`onclick="go('product',{id:'${heroProduct.id}'})" style="cursor:pointer"`:''}>
+          <img src="${heroImg}" alt="">
+          <div class="tag">${heroProduct?esc(heroProduct.name):''}</div>
         </div>
       </div>
     </div>
@@ -663,10 +666,10 @@ function viewHome(){
     </div>
 
     <div class="section-head">
-      <div><div class="eyebrow">Sélection</div><h2>Maillots en avant</h2></div>
+      <div><div class="eyebrow">Nouveautés</div><h2>Derniers maillots ajoutés</h2></div>
     </div>
     <div class="grid">
-      ${featured.length? featured.map(cardHtml).join('') : `<div class="empty">Aucun maillot pour l'instant. Ajoute ton premier produit depuis l'espace admin.</div>`}
+      ${newest.length? newest.map(cardHtml).join('') : `<div class="empty">Aucun maillot pour l'instant. Ajoute ton premier produit depuis l'espace admin.</div>`}
     </div>
   </section>`;
 }
@@ -1092,7 +1095,7 @@ function adminProducts(){
     </form>
   </div>
   <table>
-    <thead><tr><th>Photo</th><th>Nom</th><th>Catégorie</th><th>Club</th><th>Saison</th><th>Prix</th><th>Badges</th><th></th></tr></thead>
+    <thead><tr><th>Photo</th><th>Nom</th><th>Catégorie</th><th>Club</th><th>Saison</th><th>Prix</th><th>Badges</th><th>Bannière</th><th></th></tr></thead>
     <tbody>
       ${state.products.map(p=>`
         <tr>
@@ -1103,6 +1106,7 @@ function adminProducts(){
           <td>${esc(p.season||'—')}</td>
           <td class="mono">${parseFloat(p.price).toFixed(2)} €</td>
           <td>${(p.badges&&p.badges.length)?p.badges.length:'—'}</td>
+          <td>${p.isHero?`<span class="status-pill done">★ Actuelle</span>`:`<button class="edit-b" onclick="setHeroProduct('${p.id}')">Mettre en avant</button>`}</td>
           <td class="row-actions">
             <button class="edit-b" onclick="editProduct('${p.id}')">Modifier</button>
             <button class="del-b" onclick="deleteProduct('${p.id}')">Supprimer</button>
@@ -1171,7 +1175,7 @@ async function saveProduct(e){
     Object.assign(p, data);
     editingProductId = null;
   } else {
-    state.products.push({id, ...data});
+    state.products.unshift({id, ...data, createdAt:new Date().toISOString(), isHero:false});
   }
   formBadges = [];
   formGalleryImages = [];
@@ -1194,6 +1198,16 @@ function editProduct(id){
   },0);
 }
 function cancelEdit(){ editingProductId = null; formBadges = []; formGalleryImages = []; go('admin'); }
+async function setHeroProduct(id){
+  const prevHero = state.products.find(p=>p.isHero);
+  if(prevHero && prevHero.id!==id){ await sb.from('products').update({is_hero:false}).eq('id', prevHero.id); prevHero.isHero=false; }
+  const { error } = await sb.from('products').update({is_hero:true}).eq('id', id);
+  if(error){ toast("Erreur : "+error.message); return; }
+  const p = state.products.find(x=>x.id===id);
+  if(p) p.isHero = true;
+  toast("Bannière d'accueil mise à jour");
+  go('admin');
+}
 async function deleteProduct(id){
   if(!confirm("Supprimer ce maillot ?")) return;
   const { error } = await sb.from('products').delete().eq('id', id);
