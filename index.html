@@ -8,6 +8,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <!-- PayPal SDK — "sb" = mode sandbox/test. Remplace par ton vrai Client ID PayPal avant la mise en ligne, voir le message de Claude pour les instructions. -->
 <script src="https://www.paypal.com/sdk/js?client-id=sb&currency=EUR"></script>
+<!-- Supabase SDK — base de données + comptes clients -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --navy:#0A0A0C;
@@ -300,15 +302,20 @@ th{background:var(--surface2);font-size:11px;text-transform:uppercase;letter-spa
 
 <script>
 /* =========================================================
-   EliteJersey — prototype boutique (stockage via window.storage)
-   ⚠️ Le mot de passe admin ci-dessous est une protection basique
-   côté client, suffisante pour un prototype mais PAS pour un vrai
-   site en production avec paiements réels. Change-le, et prévois
-   un vrai backend avant de mettre le site en ligne pour de bon.
+   EliteJersey — connecté à Supabase (base de données + comptes clients).
+   L'accès admin est protégé par un vrai compte Supabase Auth (voir ADMIN_EMAIL
+   plus bas + les policies RLS du fichier supabase-schema.sql).
 ========================================================= */
-const ADMIN_PASSWORD = "1234ghjise";
 const SHIPPING_FEE = 4.99;
 const FLOCK_PRICE = 1.99;
+
+/* ---------- Supabase ---------- */
+const SUPABASE_URL = "https://pzbejqpxjoagqvaqahpn.supabase.co";
+const SUPABASE_KEY = "sb_publishable_Ue5DIubXL5kJJGCIXuULAg_EiYDyuEI";
+// L'email du compte admin — doit correspondre EXACTEMENT au compte créé dans
+// Supabase > Authentication > Users, et aux policies RLS du fichier SQL.
+const ADMIN_EMAIL = "elitejerseya@outlook.com";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let state = {
   route: 'home',
@@ -352,78 +359,95 @@ const DEFAULT_PRODUCTS = [
 
 function cid(){return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
 
-/* ---------- Storage ---------- */
+/* ---------- Storage (Supabase) ---------- */
 async function loadAll(){
   try{
-    const p = await window.storage.get('ej_products', true);
-    state.products = p ? JSON.parse(p.value) : DEFAULT_PRODUCTS;
-  }catch(e){ state.products = DEFAULT_PRODUCTS; await saveProducts(); }
-  try{
-    const c = await window.storage.get('ej_categories', true);
-    state.categories = c ? JSON.parse(c.value) : DEFAULT_CATEGORIES;
-  }catch(e){ state.categories = DEFAULT_CATEGORIES; await saveCategories(); }
-  try{
-    const sc = await window.storage.get('ej_clubs', true);
-    state.clubs = sc ? JSON.parse(sc.value) : DEFAULT_CLUBS;
-  }catch(e){ state.clubs = DEFAULT_CLUBS; await saveClubs(); }
-  try{
-    const o = await window.storage.get('ej_orders', true);
-    state.orders = o ? JSON.parse(o.value) : [];
-  }catch(e){ state.orders = []; }
-  try{
-    const cart = await window.storage.get('ej_cart', false);
-    state.cart = cart ? JSON.parse(cart.value) : [];
-  }catch(e){ state.cart = []; }
-  try{
-    const s = await window.storage.get('ej_session', false);
-    if(s){
-      const session = JSON.parse(s.value);
-      state.currentUser = session.email || null;
-      if(state.currentUser){
-        try{
-          const acctCart = await window.storage.get('ej_cart_acct:'+state.currentUser, true);
-          if(acctCart) state.cart = JSON.parse(acctCart.value);
-        }catch(e){}
-      }
-    }
-  }catch(e){ state.currentUser = null; }
-}
-async function saveProducts(){ try{ await window.storage.set('ej_products', JSON.stringify(state.products), true); }catch(e){ toast("Erreur de sauvegarde produits"); } }
-async function saveCategories(){ try{ await window.storage.set('ej_categories', JSON.stringify(state.categories), true); }catch(e){ toast("Erreur de sauvegarde catégories"); } }
-async function saveOrders(){ try{ await window.storage.set('ej_orders', JSON.stringify(state.orders), true); }catch(e){ toast("Erreur de sauvegarde commandes"); } }
-async function saveCart(){
-  try{
-    if(state.currentUser){
-      await window.storage.set('ej_cart_acct:'+state.currentUser, JSON.stringify(state.cart), true);
+    const { data, error } = await sb.from('products').select('*').order('created_at');
+    if(error) throw error;
+    if(data && data.length){
+      state.products = data.map(p=>({
+        id:p.id, name:p.name, price:p.price, category:p.category, club:p.club||'',
+        season:p.season||'', image:p.image, images:p.images||[p.image], badges:p.badges||[]
+      }));
     } else {
-      await window.storage.set('ej_cart', JSON.stringify(state.cart), false);
+      state.products = DEFAULT_PRODUCTS;
+      await sb.from('products').insert(DEFAULT_PRODUCTS.map(p=>({...p})));
     }
-  }catch(e){}
+  }catch(e){ console.error(e); state.products = DEFAULT_PRODUCTS; toast("Connexion à la base impossible — catalogue de démo affiché"); }
+
+  try{
+    const { data, error } = await sb.from('categories').select('name');
+    if(error) throw error;
+    if(data && data.length){ state.categories = data.map(c=>c.name); }
+    else { state.categories = DEFAULT_CATEGORIES; await sb.from('categories').insert(DEFAULT_CATEGORIES.map(name=>({name}))); }
+  }catch(e){ console.error(e); state.categories = DEFAULT_CATEGORIES; }
+
+  try{
+    const { data, error } = await sb.from('clubs').select('*');
+    if(error) throw error;
+    if(data && data.length){ state.clubs = data; }
+    else { state.clubs = DEFAULT_CLUBS; await sb.from('clubs').insert(DEFAULT_CLUBS); }
+  }catch(e){ console.error(e); state.clubs = DEFAULT_CLUBS; }
+
+  // Session client (Supabase Auth persiste déjà la session dans le navigateur)
+  try{
+    const { data:{ session } } = await sb.auth.getSession();
+    if(session && session.user){
+      state.currentUser = session.user.email;
+      state.isAdmin = (session.user.email === ADMIN_EMAIL);
+      if(state.isAdmin){ await loadOrders(); }
+      try{
+        const { data:cartRow } = await sb.from('carts').select('items').eq('user_id', session.user.id).maybeSingle();
+        state.cart = (cartRow && cartRow.items) ? cartRow.items : [];
+      }catch(e){ state.cart = []; }
+    } else {
+      state.cart = JSON.parse(localStorage.getItem('ej_anon_cart')||'[]');
+    }
+  }catch(e){ console.error(e); state.cart = JSON.parse(localStorage.getItem('ej_anon_cart')||'[]'); }
 }
 
-/* ---------- Accounts ---------- */
-async function hashPassword(email, pw){
-  const enc = new TextEncoder().encode('EJsalt:'+email.toLowerCase()+':'+pw);
-  const buf = await crypto.subtle.digest('SHA-256', enc);
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+async function loadOrders(){
+  try{
+    const { data, error } = await sb.from('orders').select('*').order('created_at',{ascending:false});
+    if(error) throw error;
+    state.orders = (data||[]).map(o=>({
+      id:o.id, date:o.created_at, status:o.status, paypalId:o.paypal_id||'', account:o.account_email||'',
+      customer:o.customer, items:o.items, subtotal:o.subtotal, shipping:o.shipping, total:o.total
+    }));
+  }catch(e){ console.error(e); state.orders = []; }
 }
-async function loadUsers(){
-  try{ const u = await window.storage.get('ej_users', true); return u? JSON.parse(u.value):[]; }catch(e){ return []; }
+
+async function saveProducts(){ /* remplacé par des écritures ciblées : voir saveProduct()/deleteProduct() */ }
+async function saveCategories(){ /* remplacé par addCategory()/deleteCategory() */ }
+async function saveOrders(){ /* remplacé par finalizeOrder() qui insère directement dans Supabase */ }
+async function saveCart(){
+  try{
+    const { data:{ session } } = await sb.auth.getSession();
+    if(session && session.user){
+      await sb.from('carts').upsert({ user_id: session.user.id, items: state.cart, updated_at: new Date().toISOString() });
+    } else {
+      localStorage.setItem('ej_anon_cart', JSON.stringify(state.cart));
+    }
+  }catch(e){ console.error(e); }
 }
-async function saveUsers(users){ try{ await window.storage.set('ej_users', JSON.stringify(users), true); }catch(e){ toast("Erreur d'enregistrement"); } }
+
+/* ---------- Accounts (Supabase Auth) ---------- */
 async function signup(e){
   e.preventDefault();
   const f = new FormData(e.target);
   const name = f.get('name').trim(), email = f.get('email').trim().toLowerCase(), pw = f.get('password');
   if(pw.length<6){ toast("Mot de passe trop court (6 caractères min)"); return; }
-  const users = await loadUsers();
-  if(users.find(u=>u.email===email)){ toast("Un compte existe déjà avec cet e-mail"); return; }
-  const passHash = await hashPassword(email, pw);
-  users.push({email, name, passHash, createdAt:new Date().toISOString()});
-  await saveUsers(users);
-  await loginSession(email);
-  // migrate current anonymous cart into the new account
-  await saveCart();
+  const { data, error } = await sb.auth.signUp({ email, password: pw, options:{ data:{ name } } });
+  if(error){ toast(error.message.includes('already')?"Un compte existe déjà avec cet e-mail":error.message); return; }
+  if(data.session){
+    state.currentUser = email;
+    state.isAdmin = (email === ADMIN_EMAIL);
+    await saveCart(); // migre le panier anonyme vers le compte
+  } else {
+    toast("Compte créé ! Vérifie ta boîte mail pour confirmer, puis connecte-toi.");
+    go('account',{authTab:'login'});
+    return;
+  }
   toast("Compte créé, bienvenue "+name+" !");
   go('home');
 }
@@ -431,29 +455,24 @@ async function login(e){
   e.preventDefault();
   const f = new FormData(e.target);
   const email = f.get('email').trim().toLowerCase(), pw = f.get('password');
-  const users = await loadUsers();
-  const u = users.find(x=>x.email===email);
-  if(!u){ toast("Aucun compte avec cet e-mail"); return; }
-  const passHash = await hashPassword(email, pw);
-  if(passHash !== u.passHash){ toast("Mot de passe incorrect"); return; }
-  await loginSession(email);
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+  if(error){ toast("E-mail ou mot de passe incorrect"); return; }
+  state.currentUser = email;
+  state.isAdmin = (email === ADMIN_EMAIL);
   try{
-    const acctCart = await window.storage.get('ej_cart_acct:'+email, true);
-    if(acctCart) state.cart = JSON.parse(acctCart.value);
+    const { data:cartRow } = await sb.from('carts').select('items').eq('user_id', data.user.id).maybeSingle();
+    if(cartRow && cartRow.items) state.cart = cartRow.items;
   }catch(e){}
+  if(state.isAdmin) await loadOrders();
   updateCartBadge();
-  toast("Connecté en tant que "+u.name);
+  toast("Connecté");
   go('home');
 }
-async function loginSession(email){
-  state.currentUser = email;
-  try{ await window.storage.set('ej_session', JSON.stringify({email}), false); }catch(e){}
-}
 async function logout(){
+  await sb.auth.signOut();
   state.currentUser = null;
-  state.cart = [];
-  try{ await window.storage.delete('ej_session', false); }catch(e){}
-  try{ const c = await window.storage.get('ej_cart', false); state.cart = c?JSON.parse(c.value):[]; }catch(e){}
+  state.isAdmin = false;
+  state.cart = JSON.parse(localStorage.getItem('ej_anon_cart')||'[]');
   updateCartBadge();
   toast("Déconnecté");
   go('home');
@@ -857,8 +876,12 @@ function buildOrder(status, paypalId){
 }
 async function finalizeOrder(status, paypalId){
   const order = buildOrder(status, paypalId);
+  const { error } = await sb.from('orders').insert({
+    id: order.id, status: order.status, paypal_id: order.paypalId, account_email: order.account,
+    customer: order.customer, items: order.items, subtotal: order.subtotal, shipping: order.shipping, total: order.total
+  });
+  if(error){ toast("Erreur lors de l'enregistrement de la commande : "+error.message); return; }
   state.orders.unshift(order);
-  await saveOrders();
   state.cart = [];
   await saveCart();
   updateCartBadge();
@@ -905,20 +928,28 @@ function viewAdminLogin(){
   return `
   <section class="container section" style="max-width:380px">
     <h2 style="margin-bottom:6px">Espace admin</h2>
-    <p style="color:var(--gray);font-size:13px;margin-bottom:22px">Accès réservé à l'équipe EliteJersey.</p>
+    <p style="color:var(--gray);font-size:13px;margin-bottom:22px">Connecte-toi avec le compte administrateur.</p>
     <form onsubmit="adminLogin(event)">
+      <div class="field"><label>E-mail</label><input type="email" name="email" required value="${ADMIN_EMAIL}"></div>
       <div class="field"><label>Mot de passe</label><input type="password" name="pw" required></div>
       <button class="btn btn-primary wfull" type="submit">Se connecter</button>
     </form>
   </section>`;
 }
-function adminLogin(e){
+async function adminLogin(e){
   e.preventDefault();
-  const pw = new FormData(e.target).get('pw');
-  if(pw === ADMIN_PASSWORD){ state.isAdmin = true; state.adminTab='orders'; go('admin'); }
-  else toast("Mot de passe incorrect");
+  const f = new FormData(e.target);
+  const email = f.get('email').trim().toLowerCase(), pw = f.get('pw');
+  if(email !== ADMIN_EMAIL){ toast("Cet e-mail n'est pas le compte administrateur"); return; }
+  const { error } = await sb.auth.signInWithPassword({ email, password: pw });
+  if(error){ toast("Identifiants incorrects"); return; }
+  state.currentUser = email;
+  state.isAdmin = true;
+  state.adminTab = 'orders';
+  await loadOrders();
+  go('admin');
 }
-function adminLogout(){ state.isAdmin = false; go('home'); }
+async function adminLogout(){ await sb.auth.signOut(); state.isAdmin = false; state.currentUser = null; go('home'); }
 
 function viewAdmin(){
   return `
@@ -973,8 +1004,10 @@ function adminOrders(){
     </div>`).join('');
 }
 async function updateOrderStatus(id, status){
+  const { error } = await sb.from('orders').update({status}).eq('id', id);
+  if(error){ toast("Erreur : "+error.message); return; }
   const o = state.orders.find(x=>x.id===id);
-  if(o){ o.status = status; await saveOrders(); toast("Statut mis à jour"); go('admin'); }
+  if(o){ o.status = status; toast("Statut mis à jour"); go('admin'); }
 }
 
 function refreshClubOptions(){
@@ -1127,21 +1160,23 @@ async function saveProduct(e){
     .filter(b=>b.image && b.price)
     .map(b=>({id:b.id||cid(), name:b.name||'Badge', price:parseFloat(b.price).toFixed(2), image:b.image}));
   const data = {
-    name: f.get('name'), price: f.get('price'), category: f.get('category'),
+    name: f.get('name'), price: parseFloat(f.get('price')), category: f.get('category'),
     club: f.get('club')||'', season: f.get('season'),
     images, image: images[0],
     badges
   };
+  const id = editingProductId || cid();
+  const { error } = await sb.from('products').upsert({ id, ...data });
+  if(error){ toast("Erreur : "+error.message); return; }
   if(editingProductId){
     const p = state.products.find(x=>x.id===editingProductId);
     Object.assign(p, data);
     editingProductId = null;
   } else {
-    state.products.push({id:cid(), ...data});
+    state.products.push({id, ...data});
   }
   formBadges = [];
   formGalleryImages = [];
-  await saveProducts();
   toast("Maillot enregistré");
   go('admin');
 }
@@ -1163,8 +1198,9 @@ function editProduct(id){
 function cancelEdit(){ editingProductId = null; formBadges = []; formGalleryImages = []; go('admin'); }
 async function deleteProduct(id){
   if(!confirm("Supprimer ce maillot ?")) return;
+  const { error } = await sb.from('products').delete().eq('id', id);
+  if(error){ toast("Erreur : "+error.message); return; }
   state.products = state.products.filter(p=>p.id!==id);
-  await saveProducts();
   toast("Maillot supprimé");
   go('admin');
 }
@@ -1216,32 +1252,39 @@ function adminCategories(){
 async function addCategory(e){
   e.preventDefault();
   const c = new FormData(e.target).get('cat').trim();
-  if(c && !state.categories.includes(c)){ state.categories.push(c); await saveCategories(); toast("Catégorie ajoutée"); }
+  if(c && !state.categories.includes(c)){
+    const { error } = await sb.from('categories').insert({name:c});
+    if(error){ toast("Erreur : "+error.message); go('admin'); return; }
+    state.categories.push(c);
+    toast("Catégorie ajoutée");
+  }
   go('admin');
 }
 async function deleteCategory(c){
   if(!confirm(`Supprimer "${c}" ? Les maillots associés resteront mais devront être réassignés.`)) return;
+  const { error } = await sb.from('categories').delete().eq('name', c);
+  if(error){ toast("Erreur : "+error.message); return; }
+  await sb.from('clubs').delete().eq('category', c);
   state.categories = state.categories.filter(x=>x!==c);
   state.clubs = state.clubs.filter(cl=>cl.category!==c);
-  await saveCategories();
-  await saveClubs();
   go('admin');
 }
-async function saveClubs(){ try{ await window.storage.set('ej_clubs', JSON.stringify(state.clubs), true); }catch(e){ toast("Erreur de sauvegarde des sous-catégories"); } }
 async function addClub(e){
   e.preventDefault();
   const f = new FormData(e.target);
   const category = f.get('category'), name = f.get('club').trim();
   if(name && !state.clubs.find(cl=>cl.category===category && cl.name===name)){
+    const { error } = await sb.from('clubs').insert({category, name});
+    if(error){ toast("Erreur : "+error.message); go('admin'); return; }
     state.clubs.push({category, name});
-    await saveClubs();
     toast("Sous-catégorie ajoutée");
   }
   go('admin');
 }
 async function deleteClub(category, name){
+  const { error } = await sb.from('clubs').delete().eq('category', category).eq('name', name);
+  if(error){ toast("Erreur : "+error.message); return; }
   state.clubs = state.clubs.filter(cl=>!(cl.category===category && cl.name===name));
-  await saveClubs();
   go('admin');
 }
 
