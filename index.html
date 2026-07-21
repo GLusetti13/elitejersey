@@ -35,7 +35,7 @@ body{
 h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;letter-spacing:-0.01em;font-weight:700;}
 .mono{font-family:'JetBrains Mono',monospace;}
 a{color:inherit;text-decoration:none;}
-button{font-family:inherit;cursor:pointer;border:none;}
+button{font-family:inherit;cursor:pointer;border:none;color:inherit;}
 img{max-width:100%;display:block;}
 ::selection{background:var(--green);color:#fff;}
 
@@ -89,7 +89,7 @@ nav.cats button:hover,nav.cats button.active{border-color:var(--green);color:var
 
 /* ---------- League chips ---------- */
 .chip-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:40px;}
-.chip{border:1px solid var(--line);background:var(--navy-light);padding:10px 20px;border-radius:2px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;}
+.chip{border:1px solid var(--line);background:var(--navy-light);color:var(--charcoal);padding:10px 20px;border-radius:2px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;}
 .chip:hover{border-color:var(--gold);color:var(--green);}
 .chip-active{border-color:var(--green);color:var(--green);background:var(--surface2);}
 
@@ -114,8 +114,10 @@ nav.cats button:hover,nav.cats button.active{border-color:var(--green);color:var
 .card .add:hover{background:var(--green);color:#FFFFFF;}
 .empty{padding:60px 20px;text-align:center;color:var(--gray);border:1px dashed var(--line);border-radius:8px;}
 .club-card{cursor:pointer;}
-.club-card .body{padding:26px 20px;text-align:center;}
+.club-card .body{padding:16px 20px 22px;text-align:center;}
 .club-card .name{font-size:17px;margin-bottom:6px;}
+.club-logo-square{width:64px;height:64px;margin:22px auto 0;border-radius:8px;background:var(--surface2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:22px;color:var(--gray);overflow:hidden;}
+.club-logo-square img{width:100%;height:100%;object-fit:cover;}
 
 /* ---------- Product detail ---------- */
 .pd{display:grid;grid-template-columns:1fr 1fr;gap:56px;padding:56px 0;}
@@ -710,8 +712,11 @@ function viewCategory(cat, club){
       <div class="grid">
         ${managedClubs.map(c=>{
           const clubItems = state.products.filter(p=>p.category===cat && p.club===c);
+          const clubData = state.clubs.find(cl=>cl.category===cat && cl.name===c);
+          const logo = clubData && clubData.logo;
           return `
           <div class="card club-card" onclick="go('category',{cat:'${escAttr(cat)}',club:'${escAttr(c)}'})">
+            <div class="club-logo-square">${logo?`<img src="${logo}" alt="${esc(c)}">`:esc(c.charAt(0))}</div>
             <div class="body">
               <div class="name">${esc(c)}</div>
               <div class="cat">${clubItems.length} maillot${clubItems.length>1?'s':''}</div>
@@ -1249,15 +1254,19 @@ function adminCategories(){
     </form>
   </div>
   <table>
-    <thead><tr><th>Club</th><th>Catégorie</th><th>Maillots</th><th></th></tr></thead>
+    <thead><tr><th>Logo</th><th>Club</th><th>Catégorie</th><th>Maillots</th><th></th></tr></thead>
     <tbody>
       ${state.clubs.length? state.clubs.map(cl=>`
         <tr>
+          <td>
+            <div class="thumb-preview small" id="clubLogo-${escAttr(cl.category)}-${escAttr(cl.name)}">${cl.logo?`<img src="${cl.logo}">`:esc(cl.name.charAt(0))}</div>
+            <input type="file" accept="image/*" style="width:90px;font-size:10px" onchange="handleClubLogo(event,'${escAttr(cl.category)}','${escAttr(cl.name)}')">
+          </td>
           <td>${esc(cl.name)}</td>
           <td>${esc(cl.category)}</td>
           <td>${state.products.filter(p=>p.club===cl.name && p.category===cl.category).length}</td>
           <td class="row-actions"><button class="del-b" onclick="deleteClub('${escAttr(cl.category)}','${escAttr(cl.name)}')">Supprimer</button></td>
-        </tr>`).join('') : `<tr><td colspan="4" style="color:var(--gray)">Aucune sous-catégorie pour l'instant.</td></tr>`}
+        </tr>`).join('') : `<tr><td colspan="5" style="color:var(--gray)">Aucune sous-catégorie pour l'instant.</td></tr>`}
     </tbody>
   </table>`;
 }
@@ -1298,6 +1307,31 @@ async function deleteClub(category, name){
   if(error){ toast("Erreur : "+error.message); return; }
   state.clubs = state.clubs.filter(cl=>!(cl.category===category && cl.name===name));
   go('admin');
+}
+function handleClubLogo(e, category, name){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const img = new Image();
+    img.onload = async function(){
+      const canvas = document.createElement('canvas');
+      const maxW = 200;
+      const scale = Math.min(1, maxW/img.width);
+      canvas.width = img.width*scale; canvas.height = img.height*scale;
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      const logo = canvas.toDataURL('image/png', 0.85);
+      const { error } = await sb.from('clubs').update({logo}).eq('category', category).eq('name', name);
+      if(error){ toast("Erreur : "+error.message); return; }
+      const cl = state.clubs.find(x=>x.category===category && x.name===name);
+      if(cl) cl.logo = logo;
+      const preview = document.getElementById(`clubLogo-${category}-${name}`);
+      if(preview) preview.innerHTML = `<img src="${logo}">`;
+      toast("Logo mis à jour");
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 
 /* ---------- Init ---------- */
