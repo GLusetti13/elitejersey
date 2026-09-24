@@ -243,12 +243,319 @@ th{background:var(--surface2);font-size:11px;text-transform:uppercase;letter-spa
   footer .grid-f{grid-template-columns:1fr 1fr;}
   .form-grid{grid-template-columns:1fr;}
 }
+
+/* =========================================================
+   EliteJersey — Premium UI refresh
+   Keeps the existing data/auth/cart/admin architecture.
+   ========================================================= */
+:root{
+  --navy:#07090d;
+  --navy-light:#0d1118;
+  --surface2:#121925;
+  --blue:#2f80ff;
+  --blue-dark:#1761cc;
+  --blue-soft:#7fb2ff;
+  --off-white:#f7f9fc;
+  --charcoal:#eef2f7;
+  --gray:#8d98aa;
+  --line:#202938;
+  --line-soft:#18212e;
+  --radius:4px;
+  --shadow:0 20px 60px rgba(0,0,0,.32);
+}
+
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(circle at 80% -10%,rgba(47,128,255,.10),transparent 34rem),
+    var(--navy);
+  color:var(--charcoal);
+}
+body:before{
+  content:"";
+  position:fixed; inset:0; pointer-events:none; z-index:-1;
+  background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);
+  background-size:48px 48px;
+  mask-image:linear-gradient(to bottom,black,transparent 75%);
+}
+
+.topbar{
+  background:#05070a;
+  border-bottom:1px solid rgba(255,255,255,.05);
+  color:#9ea9ba;
+}
+.topbar .container{height:32px;font-size:10px;text-transform:uppercase;letter-spacing:.11em}
+
+header.site-header{
+  background:rgba(7,9,13,.88);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
+.nav-row{height:82px}
+.logo{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:19px;
+  letter-spacing:.12em;
+  white-space:nowrap;
+}
+.logo .num{
+  width:34px;height:34px;border-radius:2px;
+  background:var(--blue);
+  color:#fff;
+  box-shadow:0 0 0 1px rgba(255,255,255,.08),0 8px 24px rgba(47,128,255,.25);
+}
+nav.cats{gap:30px}
+nav.cats button{
+  color:#aeb7c6;
+  font-size:11px;
+  letter-spacing:.09em;
+}
+nav.cats button:hover,nav.cats button.active{color:#fff;border-color:var(--blue)}
+.nav-actions{gap:10px}
+.account-btn{
+  color:#aeb7c6;
+  border:1px solid transparent;
+  padding:10px 12px;
+}
+.account-btn:hover{color:#fff}
+.cart-btn{
+  background:#fff;color:#07090d;
+  border-radius:2px;
+  padding:11px 14px;
+  box-shadow:0 8px 24px rgba(0,0,0,.2);
+}
+.cart-btn:hover{background:#dfeaff}
+.cart-btn .badge{background:var(--blue);color:#fff}
+
+.hero{
+  background:
+    radial-gradient(circle at 76% 48%,rgba(47,128,255,.22),transparent 25rem),
+    linear-gradient(135deg,#07090d 0%,#0a101a 55%,#0b1728 100%);
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.hero .container{
+  min-height:610px;
+  padding:92px 24px 86px;
+  position:relative;
+}
+.hero .eyebrow{color:var(--blue-soft);font-size:10px;letter-spacing:.18em}
+.hero h1{
+  font-size:clamp(48px,7vw,92px);
+  line-height:.9;
+  letter-spacing:-.045em;
+  max-width:720px;
+}
+.hero h1 span{color:var(--blue)}
+.hero p{
+  color:#aab5c5;
+  max-width:500px;
+  font-size:15px;
+  line-height:1.8;
+}
+.hero-cta{margin-top:36px}
+.btn{
+  border-radius:2px;
+  padding:14px 22px;
+  font-size:11px;
+  letter-spacing:.10em;
+}
+.btn-primary{
+  background:var(--blue);
+  box-shadow:0 12px 30px rgba(47,128,255,.22);
+}
+.btn-primary:hover{background:var(--blue-dark)}
+.btn-outline{
+  border-color:#334054;
+  color:#dce3ee;
+}
+.btn-outline:hover{border-color:var(--blue);color:#fff}
+
+.hero-visual{height:390px}
+.hero-num{
+  font-size:320px;
+  color:rgba(255,255,255,.025);
+  transform:translate(8px,-4px);
+}
+.hero-card{
+  width:260px;
+  padding:12px;
+  border-radius:3px;
+  background:#0b1018;
+  border:1px solid #273346;
+  box-shadow:0 35px 90px rgba(0,0,0,.55);
+  transform:rotate(-4deg);
+}
+.hero-card img{border-radius:2px}
+.hero-card .tag{
+  padding:4px 3px 2px;
+  color:#a9c9ff;
+  font-size:10px;
+  letter-spacing:.04em;
+}
+
+.section{padding:88px 0}
+.section-head{margin-bottom:28px}
+.section-head .eyebrow{color:#667386;font-size:10px;letter-spacing:.16em}
+.section-head h2{font-size:32px;letter-spacing:-.035em}
+
+.chip-row{gap:8px;margin-bottom:42px}
+.chip{
+  background:transparent;
+  border:1px solid #273243;
+  color:#aeb8c8;
+  border-radius:2px;
+  padding:9px 13px;
+  font-size:10px;
+  letter-spacing:.10em;
+}
+.chip:hover,.chip-active{
+  background:rgba(47,128,255,.08);
+  border-color:var(--blue);
+  color:#dceaff;
+}
+
+.grid{
+  grid-template-columns:repeat(auto-fill,minmax(225px,1fr));
+  gap:14px;
+}
+.card{
+  background:#0c1119;
+  border:1px solid #1c2634;
+  border-radius:3px;
+  box-shadow:none;
+}
+.card:hover{
+  border-color:#355b91;
+  box-shadow:0 18px 50px rgba(0,0,0,.35);
+  transform:translateY(-4px);
+}
+.card .thumb{background:#111824}
+.card .badge-num{
+  background:rgba(7,9,13,.88);
+  color:#9fc3ff;
+  border-radius:2px;
+}
+.card .body{padding:15px 16px 17px}
+.card .cat{font-size:9px;letter-spacing:.11em;color:#6f7c8f}
+.card .name{font-size:14px;line-height:1.35}
+.card .price{font-size:15px}
+.card .add{
+  background:#151d29;
+  border:1px solid #263244;
+  border-radius:2px;
+  padding:8px 11px;
+  font-size:10px;
+  letter-spacing:.05em;
+}
+.card .add:hover{background:var(--blue);border-color:var(--blue)}
+.club-logo-square{
+  border-radius:3px;
+  background:#101722;
+  border-color:#263244;
+}
+
+.pd{padding:72px 0;gap:70px}
+.pd-img{
+  border-radius:3px;
+  background:#101722;
+  box-shadow:0 30px 80px rgba(0,0,0,.25);
+}
+.pd-info h1{font-size:38px;letter-spacing:-.04em}
+.pd-info .price{color:#8ebaff;font-size:26px}
+.size-row button{
+  border-radius:2px;
+  background:#0c1119;
+  border-color:#263244;
+}
+.size-row button.active{background:var(--blue);border-color:var(--blue)}
+.badge-opt{
+  border-radius:3px;
+  background:#0c1119;
+  border-color:#263244;
+}
+.badge-opt:hover{border-color:#467dc7}
+.field-label,label{font-size:10px;letter-spacing:.10em}
+
+.overlay{background:rgba(0,0,0,.68);backdrop-filter:blur(3px)}
+.drawer{
+  background:#0b1017;
+  border-left:1px solid #273243;
+  box-shadow:-30px 0 80px rgba(0,0,0,.35);
+}
+.drawer-head,.drawer-foot{border-color:#202b39}
+.drawer-body{padding:18px 22px}
+.ci{border-color:#202b39}
+.ci img{border-radius:2px}
+.qty button{border-radius:2px}
+.coupon-row button{background:var(--blue);border-radius:2px}
+
+input,select,textarea{
+  background:#0a0f16;
+  border-color:#273243;
+  border-radius:2px;
+}
+input:focus,select:focus,textarea:focus{
+  outline:1px solid var(--blue);
+  border-color:var(--blue);
+}
+
+footer{
+  background:#05070a;
+  border-top:1px solid rgba(255,255,255,.06);
+  margin-top:100px;
+}
+footer a:hover{color:#a9c9ff}
+.admin-link{color:#465263}
+
+.admin-bar{
+  background:linear-gradient(110deg,#07090d,#0b1728);
+  border-bottom:1px solid #202b39;
+}
+.admin-form,.order-card,table{
+  background:#0c1119;
+  border-color:#202b39;
+}
+th{background:#111925}
+th,td{border-color:#202b39}
+.admin-tabs{border-color:#202b39}
+.admin-tabs button.active{color:#8ebaff;border-color:var(--blue)}
+
+@media(max-width:860px){
+  .topbar .container span:last-child{display:none}
+  .nav-row{height:68px}
+  .logo{font-size:16px}
+  .logo .num{width:30px;height:30px}
+  .nav-actions .account-btn{display:none}
+  .hero .container{padding:66px 20px 54px}
+  .hero h1{font-size:clamp(46px,15vw,72px)}
+  .hero-visual{height:280px}
+  .hero-num{font-size:220px}
+  .hero-card{width:210px}
+  .section{padding:64px 0}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .card .body{padding:12px}
+  .pd{padding:46px 0;gap:34px}
+}
+@media(max-width:520px){
+  .container{padding-left:16px;padding-right:16px}
+  .hero .container{padding-left:16px;padding-right:16px}
+  .hero-cta{flex-direction:column}
+  .hero-cta .btn{text-align:center}
+  .grid{grid-template-columns:1fr 1fr}
+  .card .name{font-size:13px}
+  .card .price-row{gap:8px;align-items:flex-start}
+  .card .add{padding:7px 8px}
+  .drawer{width:100%;max-width:100%}
+}
+
 </style>
 </head>
 <body>
 <a class="skip-link" href="#app">Aller au contenu</a>
 
-<div class="topbar"><div class="container"><span>Livraison en 15 à 20 jours</span><span>Support : elite-jersey@outlook.com</span></div></div>
+<div class="topbar"><div class="container"><span>EXPÉDITION SUIVIE · 15 À 20 JOURS</span><span>SUPPORT · elite-jersey@outlook.com</span></div></div>
 
 <header class="site-header">
   <div class="container nav-row">
@@ -317,7 +624,9 @@ const SUPABASE_KEY = "sb_publishable_Ue5DIubXL5kJJGCIXuULAg_EiYDyuEI";
 // L'email du compte admin — doit correspondre EXACTEMENT au compte créé dans
 // Supabase > Authentication > Users, et aux policies RLS du fichier SQL.
 const ADMIN_EMAIL = "elitejerseya@outlook.com";
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = (window.supabase && typeof window.supabase.createClient === 'function')
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+  : null;
 
 let state = {
   route: 'home',
@@ -643,7 +952,7 @@ function viewHome(){
         <p>Les maillots des plus grands championnats et sélections, sélectionnés saison après saison.</p>
         <div class="hero-cta">
           <a href="#" class="btn btn-primary" onclick="go('category',{cat:'${state.categories[0]||''}'});return false;">Voir la boutique</a>
-          <a href="#" class="btn btn-outline" onclick="return false;">Nouveautés</a>
+          <a href="#app" class="btn btn-outline" onclick="window.scrollTo({top:document.getElementById('app').offsetTop-70,behavior:'smooth'});return false;">Explorer les nouveautés</a>
         </div>
       </div>
       <div class="hero-visual">
@@ -1335,9 +1644,22 @@ function handleClubLogo(e, category, name){
 }
 
 /* ---------- Init ---------- */
-(async function init(){
-  await loadAll();
-  render();
+(function init(){
+  // Render the interface immediately so a local preview never stays on a blank page.
+  try {
+    state.products = DEFAULT_PRODUCTS;
+    state.categories = DEFAULT_CATEGORIES;
+    state.clubs = DEFAULT_CLUBS;
+    state.cart = JSON.parse(localStorage.getItem('ej_anon_cart')||'[]');
+    render();
+  } catch(e) {
+    console.error('Initial render error:', e);
+  }
+
+  // Then try to hydrate the catalogue/session from Supabase.
+  if (window.supabase && typeof sb !== 'undefined') {
+    loadAll().then(() => render()).catch(e => console.error('Supabase init error:', e));
+  }
 })();
 </script>
 </body>
